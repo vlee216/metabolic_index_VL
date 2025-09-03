@@ -8,7 +8,8 @@ source("code/helper/plot.phylo2.funs.R")
 all.dat <- load_data()
 all.dat <- filter_data(all.dat)
 
-all.taxa <- dplyr::select(all.dat, Phylum, Class, Order, Family, Genera, Species)
+# VL Change -- 7/30 -- "Genera" to "Genus" in order to resolve Error, "Can't select columns that don't exist"
+all.taxa <- dplyr::select(all.dat, Phylum, Class, Order, Family, Genus, Species)
 all.taxa <- dplyr::distinct(all.taxa)
 
 # for each taxa, figure out if used oxyconform, SMR, or both
@@ -20,12 +21,9 @@ get_pcrit_method <- function(species, all.data) {
   return(return_method)
 }
 
-
-
 col_names <- names(all.taxa)
 all.taxa <- all.taxa %>%
   mutate(across(all_of(col_names), as.factor))
-
 
 frm <- ~Phylum/Class/Order/Family/Species
 
@@ -56,4 +54,3 @@ plot.phylo2(tr, "fan", cex = 0.8, show.node.label = T, use.edge.length = T, show
 #nodelabels()
 tiplabels(pch = 21, col = "black", bg = color_by_species, cex = 1.5)
 dev.off()
-

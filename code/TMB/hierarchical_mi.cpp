@@ -28,7 +28,7 @@
     
     // Additive constant on diagonal
     for(int r=0; r<n_rows; r++){
-      Cov_rr(r,r) += min_var;  // Neccesary to prevent crashes during innner optimizer when using SR data
+      Cov_rr(r,r) += min_var;  // Necessary to prevent crashes during inner optimizer when using SR data
     }
     // Combine and return
     Cov_rr += L_rc * L_rc.transpose();
@@ -52,14 +52,18 @@
     DATA_VECTOR( minuslogpo2 );
     DATA_UPDATE( minuslogpo2 );
     DATA_IVECTOR( spc_in_PCgz );
-    DATA_VECTOR( method_mat );
+    // adjusted on 8/28 as we attempt to allow for more than one non-default method option
+    //DATA_VECTOR( method_mat );
+    DATA_MATRIX( method_mat );
     
     // Parameters 
     PARAMETER_VECTOR( alpha_j );
     PARAMETER_VECTOR( L_z );
     PARAMETER_VECTOR( log_lambda ); // log-multiplier for process-error covariance for different taxonomic levels
     PARAMETER_MATRIX( beta_gj );
-    PARAMETER( beta_method ); // effect of paper method (SMR) on measured pcrit
+    // adjusted on 8/28 as we attempt to allow for more than one non-default method option
+    // PARAMETER( beta_method ); // effect of paper method (SMR) on measured pcrit
+    PARAMETER_VECTOR( beta_method );
     PARAMETER( logsigma );
 
     
@@ -149,8 +153,9 @@
     
     // Probability of the data
     for( int id=0; id<n_d; id++){
-     mu( id ) =  Eo( taxa_id( id ) ) * invtemp( id ) + n_pow( taxa_id( id ) ) * logW( id  ) - log(V( taxa_id( id ) ))  - beta_method * method_mat( id );
-    }
+    // adjusted on 8/29 for the "method" change at end of the next line
+    mu( id ) =  Eo( taxa_id( id ) ) * invtemp( id ) + n_pow( taxa_id( id ) ) * logW( id  ) - log(V( taxa_id( id ) ))  - method_mat.row(id).matrix().dot(beta_method.matrix());
+      }
     
     
     // Get NLL of the data

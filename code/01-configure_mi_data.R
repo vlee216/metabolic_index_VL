@@ -20,6 +20,7 @@ unique.taxa <- unique(all.dat$scientific.name)
 all.dat$Phylum <- NA
 all.dat$Class <- NA
 all.dat$Subclass <- NA
+all.dat$Infraclass <- NA
 all.dat$Superorder <- NA
 all.dat$Order <- NA
 all.dat$Suborder <- NA
@@ -49,6 +50,7 @@ for (i in 1:length(unique.taxa)) {
   all.dat$Phylum[taxa.index] <- lookup.taxa(classificationTree, "Phylum")
   all.dat$Class[taxa.index] <- lookup.taxa(classificationTree, "Class")
   all.dat$Subclass[taxa.index] <- lookup.taxa(classificationTree, "Subclass")
+  all.dat$Infraclass[taxa.index] <- lookup.taxa(classificationTree, "Infraclass")
   all.dat$Superorder[taxa.index] <- lookup.taxa(classificationTree, "Superorder")
   all.dat$Order[taxa.index] <- lookup.taxa(classificationTree, "Order")
   all.dat$Suborder[taxa.index] <- lookup.taxa(classificationTree, "Suborder")
@@ -70,6 +72,60 @@ for (i in no_spc) {
   all.dat$Species[i] <- paste(all.dat$Genus[i], "spp.")
 }
 
+# Fill in "Infraclass" for "Order" if Order is NA for a given taxa
+# Added by VL on 8/26/25
+for (i in 1:nrow(all.dat)) {
+  if (is.na(all.dat$Order[i]) == TRUE && is.na(all.dat$Infraclass[i]) == FALSE) {
+    all.dat$Order[i] <- all.dat$Infraclass[i]
+  }
+}
+
+# Tackle the Pcrit units
+# Added by VL
+all.dat$PcritMixed <- all.dat$Pcrit
+all.dat$Pcrit <- NA
+
+# Will need to go through all rows, i = 1:nrow(all.dat)
+# First step: check if PcritUnit == "kPa"
+# If yes, then import to the final column. If no, leave that row in the final column blank
+for (i in 1:nrow(all.dat)) {
+  if (all.dat[i, ]$PcritUnit == "kPa") {
+    all.dat[i,]$Pcrit <- all.dat[i, ]$PcritMixed
+  }
+}
+
+# Second step: check if PcritUnit == "Torr" or "mmHg"
+# If yes, then apply the right transformation, then import to the final column. If no, leave that row blank
+for (i in 1:nrow(all.dat)) {
+  if (all.dat[i, ]$PcritUnit == "Torr" | all.dat[i,]$PcritUnit == "mmHg") {
+    all.dat[i,]$Pcrit <- all.dat[i, ]$PcritMixed * (101325/760) * (1/1000)
+  }
+}
+
+# Fourth step: other units -- %Air, %Oxy, ppm, mg/L, etc
+# For these we will use convert_DO() from the respR package
+# These require temperature and salinity values. 
+library(respR)
+
+for (i in 1:nrow(all.dat)) {
+  if (!(all.dat[i, ]$PcritUnit %in% c("kPa", "Torr", "mmHg"))) {
+all.dat[i,]$Pcrit <- convert_DO(x = all.dat[i,]$PcritMixed,
+                                from = all.dat[i,]$PcritUnit,
+                                to = "kPa",
+                                S = all.dat[i,]$Salinity,
+                                t = all.dat[i,]$Temp)
+  }
+}
+# This will produce warnings about P but we don't have pressure valeus so the default will be used
+
+# Check that there are no remaining NA values in the column "Pcrit"
+# If everything has worked properly, this value should be 0
+sum(is.na(all.dat$Pcrit) == TRUE)
+
+# End adjusting Pcrit units. Can now remove the columns "PcritUnit" and "PcritMixed", and "Salinity" which is just for conversions
+all.dat$PcritMixed <- NULL
+all.dat$PcritUnit <- NULL
+all.dat$Salinity <- NULL
 
 saveRDS(all.dat, file = "data/alldata_taxonomy.RDS")
 
@@ -97,3 +153,4 @@ sum_by_study <- all.dat %>%
             norder = length(unique(Order)),
             nclass = length(unique(Class))
             )
+

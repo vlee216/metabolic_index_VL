@@ -181,6 +181,25 @@ summarize_estimates <- function (beta_mle, beta_se, ParentChild_gz, taxa.list){
 # load data ####
 all.dat <- load_data()
 all.dat <- filter_data(all.dat)
+
+# Transform EstMethod_Metric == "loe" to EstMethod_Metric == "lethal (VL, 8/27)
+for (i in 1:nrow(all.dat)){
+  if (all.dat[i,]$EstMethod_Metric == "loe") {
+    all.dat[i,]$EstMethod_Metric <- "death"
+  }
+}
+
+# Filter to remove EstMethod_Metric that is not "oxyconform", "smr", or "death"
+all.dat <- all.dat %>%
+  dplyr::filter(EstMethod_Metric == "oxyconform" | EstMethod_Metric == "smr" | EstMethod_Metric == "death")
+
+# This should produce TRUE
+length(unique(all.dat$EstMethod_Metric)) == 3
+
+# change so that the default level is oxyconform 
+all.dat$EstMethod_Metric <- as.factor(all.dat$EstMethod_Metric)
+all.dat$EstMethod_Metric <- factor(all.dat$EstMethod_Metric, levels = c("oxyconform", "smr", "death"))
+
 method_mat <- model.matrix(~ EstMethod_Metric , all.dat)
 n_methods <- ncol(method_mat) -1
 
@@ -292,7 +311,7 @@ parameters = list(alpha_j = c(0, 0, 0),
                   L_z = rep(1, 6),
                   log_lambda = rep(-1, length(unique(PC_gz[,2])) -1),
                   beta_gj = matrix(0, nrow = n_g, ncol = n_j),
-                  beta_method = 0,
+                  beta_method = rep(0, ncol(method_mat) -1),
                   logsigma = 0
 )
 Random <- c("beta_gj")
@@ -338,6 +357,11 @@ beta_se <- matrix(re[grep(rownames(re), pattern = "beta_gj"),2], nrow = n_g, nco
 beta_method <- matrix(fixef[grep(rownames(fixef), pattern = "beta_method"),1], nrow = n_methods)
 trans <- summary(rep, "report")
 lambda <- trans[grep(rownames(trans), pattern = "lambda"), ]
+
+# Name the beta_method rows ###
+
+
+
 
 # Summarize Estimatess ####
 sum_est <- summarize_estimates(beta_mle, beta_se, ParentChild_gz, taxa.list)

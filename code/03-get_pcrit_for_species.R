@@ -17,16 +17,22 @@ conflicted::conflict_prefer("filter", "dplyr")
 source("code/helper/fit_model_funs.R")
 
 # load (or create) fitted model
+# Future testing note -- if you have changed anything that needs updated, set below to = T instead of = F
 model.fit <- fit_model_augmented_taxa(fitnew = F)
+model.fit$rep
 
 # Do this for several types of sculplin in family cottidae
 species.names <- c("Clinocottus globiceps", "Clinocottus analis", "Astrocottus leprops")
-method.names <- c("smr", "routine")
+
+# Set method names according to the leveling in 02-fit_tmb_model
+method.names <- c("oxyconform", "death", "smr")
 
 # create a dataframe of all combinations of the above
 prediction_info <- tidyr::expand_grid(taxa.name = species.names, method = method.names)
 
-# calcualte pcrit for each comboination above and put in data frame
+
+# calcualte pcrit for each combination above and put in data frame
+# Now that I have multiple lines for beta_method, this throws an error. Will need editing in fit_model_funs.R
 result_df <- pmap_dfr(prediction_info, 
                       function(taxa.name, method) {
                         result <- estimate_taxa(taxa.name = taxa.name,
@@ -44,6 +50,17 @@ result_df <- pmap_dfr(prediction_info,
                         }
                       )
 
+# useful code block for testing
+taxa.name <- "Astrocottus leprops"
+method <- "oxyconform"
+w <- 25
+temperature <- 20
+rep <- model.fit$rep
+ParentChild_gz <- model.fit$ParentChild_gz
+psigma <- 0
+ps <- 0
+# end code block for testing
+
 # rename species for genus and family - level
 result_df$species[result_df$species == species.names[2] ] <- "Clinocottus sp."
 result_df$species[result_df$species == species.names[3] ] <- "Cottidae"
@@ -55,8 +72,14 @@ result_df <- result_df %>%
     ypos = as.numeric(species_factor) + ifelse(method == "smr", -0.1, 0.1)
   )
 
+result_df
+
+# Current issue -- the SE values for Cottidae are smaller than should be expected
+# They should be the largest SE values for each of the methods, not the smallest
+# What's going on? did the dataset acquire a Astrocottus leprops value at some point?
+
 # colors to use:
-colors = c("#0072B2", "#D55E00")
+colors = c("#0072B2", "#D55E00", "#ADC905")
 # setup theme
 theme_set(theme_bw(base_size = 18))
 theme_update(panel.grid.major = element_blank(), 
@@ -82,7 +105,10 @@ plot_results <- ggplot(data = result_df, aes(y = ypos, x = log_pcrit, col = meth
     minor_breaks = log(seq(2,10, by = 0.1)),
     name = bquote(p[crit]) ) +
   ylab("") +
-  scale_color_manual(values = colors, name = NULL, labels = c("Oxyconformity", "Standard Metabolic Rate")) +
+  scale_color_manual(values = c("death" = colors[1], "smr" = colors[2], "oxyconform" = colors[3]),
+                     name = NULL,
+                     breaks = c("death", "smr", "oxyconform"),
+                     labels = c("Death", "SMR", "Oxyconform")) +
   theme(legend.position = "top")
 
 print(plot_results)

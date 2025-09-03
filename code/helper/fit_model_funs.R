@@ -16,8 +16,9 @@ find_index <- function(x,y) y <- which(y == x)
 filter_data <- function(data.df) {
   data.df$EstMethod_Metric <- tolower(data.df$EstMethod_Metric)
   data.df <- dplyr::filter(data.df, !Method == "unknown", !EstMethod_Metric == "unknown")
-  ## Keep only oxygen consumption methods
-  data.df <- dplyr::filter(data.df, Method == "OxygenConsumption")
+  ## Keep only oxygen consumption or lethal methods
+  ## Change made by VL, 8/27
+  data.df <- dplyr::filter(data.df, Method == "OxygenConsumption" | Method == "Lethal")
   return(data.df)
 }
   
@@ -380,7 +381,7 @@ load_data <- function() {
     )
   }
   
-  # lookup lowest taxonomic group represntation ####
+  # lookup lowest taxonomic group representation ####
   lookup_taxonomic_group <- function(taxa.name, all.dat, ParentChild_gz) {
     # lookup taxa in sealifebase
     # look to see if species is in database
@@ -478,6 +479,10 @@ load_data <- function() {
     }
   }
   
+  
+  
+  
+  
   # Estimate pcrit for taxa using full covariance ####
   estimate_taxa <- function(taxa.name, 
                             w ,
@@ -505,7 +510,12 @@ load_data <- function() {
     logsigma <- fixef["logsigma", "Estimate"]
     sigma <- exp(logsigma)
     
+    # Could this be the issue -- does it need to be changed to 4 traits to match the expanded model?
     n_j <- 3 # number of traits
+    # n_j <- 4 # number of traits
+    
+    # it says number of traits but what is a "trait" here ??
+    
     n_g <- nrow(ParentChild_gz) # number of taxagroups
     
     beta_mle <- matrix(re[grep(rownames(re), pattern = "beta_gj"), 1],
@@ -532,8 +542,8 @@ load_data <- function() {
     
     # Lookup beta_method
     beta_method_index <- which(names == "beta_method")
-    beta_method <- fixef["beta_method", 1]
-    beta_method_se <- fixef["beta_method", 2]
+    beta_method <- fixef[which(rownames(fixef) == "beta_method"), 1]
+    beta_method_se <- fixef[which(rownames(fixef) == "beta_method"), 2]
     
     # Do calculations to approximate the variance- covariance matrix
     # I assume no covariance between traits and beta_method
@@ -558,8 +568,9 @@ load_data <- function() {
     inv.temp <- 1 / kb * (1 / kelvin(temperature) - 1 / kelvin(tref))
     
     # Set up x_predict
-    if (method == "smr") x_predict <- as.vector(c(1, -logw, -inv.temp, 1))
-    if (!method == "smr") x_predict <- as.vector(c(1, -logw, -inv.temp, 0))
+    if (method == "oxyconform") x_predict <- as.vector(c(1, -logw, -inv.temp, 0, 0))
+    if (method == "smr") x_predict <- as.vector(c(1, -logw, -inv.temp, 1, 0))
+    if (method == "death") x_predict <- as.vector(c(1, -logw, -inv.temp, 0, 1))
     
     # calculate prediction and SE of prediction
     log_pcrit_predict <-  x_predict %*% betas
@@ -568,12 +579,15 @@ load_data <- function() {
     # format results nicely
     parameter_estimates <- cbind(c(beta_mle_taxa, beta_method),
                                  c(beta_se_taxa, beta_method_se))
-    rownames(parameter_estimates) <- c("log(V)", "n", "Eo", "beta_method")
+    rownames(parameter_estimates) <- c("log(V)", "n", "Eo", "beta_method smr", "beta_method death")
     colnames(parameter_estimates) <- c("Estimate", "SE")
     
     log_pcrit_estimate <- c(logpcrit = log_pcrit_predict, se = log_pcrit_se)
     return(list(parameters = parameter_estimates, log_pcrit = log_pcrit_estimate, var_covar = V))
   }
+  
+  
+  
   # Fit TMB model using augmented taxa dataframe ####
   fit_model_augmented_taxa <- function(fitnew = F) {
     if (fitnew) {
@@ -595,6 +609,19 @@ load_data <- function() {
       ## load data ####
       all.dat <- load_data()
       all.dat <- filter_data(all.dat)
+      
+      ### addition on 8/28
+      for (i in 1:nrow(all.dat)){
+        if (all.dat[i,]$EstMethod_Metric == "loe") {
+          all.dat[i,]$EstMethod_Metric <- "death"
+        }
+      }
+      all.dat <- all.dat %>%
+        dplyr::filter(EstMethod_Metric == "oxyconform" | EstMethod_Metric == "smr" | EstMethod_Metric == "death")
+      all.dat$EstMethod_Metric <- as.factor(all.dat$EstMethod_Metric)
+      all.dat$EstMethod_Metric <- factor(all.dat$EstMethod_Metric, levels = c("oxyconform", "smr", "death"))
+      ###
+      
       augmented_df <- augment_taxa(all.dat)
       
       # Do all of the setup stuff on data for TMB
@@ -633,12 +660,12 @@ load_data <- function() {
         method_mat = method_mat[, -1]
       )
       
-      parameters = list(
+        parameters = list(
         alpha_j = c(0, 0, 0),
         L_z = rep(1, 6),
         log_lambda = rep(-1, length(unique(PC_gz[, 2])) - 1),
         beta_gj = matrix(0, nrow = n_g, ncol = n_j),
-        beta_method = 0,
+        beta_method = rep(0, ncol(method_mat)-1),
         logsigma = 0
       )
       Random <- c("beta_gj")
