@@ -252,9 +252,9 @@ data <- list(PC_gz = PC_gz,
              g_i = g_i - 1,
              invtemp = all.dat$inv.temp,
              logW = log(all.dat$W),
-             taxa_id = g_i_i -1,
+             taxa_id = g_i_i,
              minuslogpo2 = -log(all.dat$Pcrit),
-             spc_in_PCgz = spc_in_PC_gz -1
+             spc_in_PCgz = spc_in_PC_gz
 )
 
 parameters = list(alpha_j = c(0, 0, 0),
@@ -374,7 +374,7 @@ f_base <- function(parameters){
   
   # probability of the data
   for (i in 1:n_d){
-    mu[i] <- Eo[taxa_id[i] + 1]*invtemp[i] + n_pow[taxa_id[i] + 1]*logW[i] - log(V[taxa_id[i] + 1])
+    mu[i] <- Eo[taxa_id[i]]*invtemp[i] + n_pow[taxa_id[i]]*logW[i] - log(V[taxa_id[i]])
   }
   
   # get nll of the data
@@ -408,40 +408,6 @@ sdr
 
 ## end space to work on turning this into RTMB code
 
-
-Random <- c("beta_gj")
-model <- "hierarchical_mi_base"
-compile(paste0("code/TMB/", model, ".cpp"))
-dyn.load(dynlib(paste0("code/TMB/",model)))
-
-## Run TUMB ####
-obj_nomethod <-
-  TMB::MakeADFun(
-    data = data,
-    parameters = parameters,
-    DLL = model,
-    random = Random,
-    silent = TRUE
-  )
-
-opt_nomethod <- nlminb(obj_nomethod$par, obj_nomethod$fn, obj_nomethod$gr)
-rep_nomethod = TMB::sdreport( obj_nomethod,
-                getReportCovariance = TRUE, 
-                getJointPrecision=TRUE)
-EDF <- calculate_EDF( obj= obj_nomethod,
-                      opt = opt_nomethod,
-                      nonvariance_fixed_effects = c( "alpha_j", "L_z", "log_lambda"),
-                      prediction_name = "mu",
-                      data_name = "minuslogpo2",
-                      delta = 0.01,
-                      show_progress = F,
-                      refit = "random"
-)
-
-nll_data <- obj_nomethod$report()[["nll_data"]]
-cAIC_nomethod <- 2 * nll_data + 2 * EDF
-
-
 # Now for the method effect
 
 # Fit model using method effect ####
@@ -451,9 +417,9 @@ data <- list(PC_gz = PC_gz,
              g_i = g_i - 1,
              invtemp = all.dat$inv.temp,
              logW = log(all.dat$W),
-             taxa_id = g_i_i -1,
+             taxa_id = g_i_i,
              minuslogpo2 = -log(all.dat$Pcrit),
-             spc_in_PCgz = spc_in_PC_gz -1,
+             spc_in_PCgz = spc_in_PC_gz,
              method_mat = method_mat[,-1]
 )
 
@@ -550,7 +516,7 @@ f <- function(parameters){
   
   # probability of the data
   for (i in 1:n_d){
-    mu[i] <- Eo[taxa_id[i] + 1]*invtemp[i] + n_pow[taxa_id[i] + 1]*logW[i] - log(V[taxa_id[i] + 1] - method_mat[i,] %*% beta_method)
+    mu[i] <- Eo[taxa_id[i]]*invtemp[i] + n_pow[taxa_id[i]]*logW[i] - log(V[taxa_id[i]] - method_mat[i,] %*% beta_method)
   }
   
   # get nll of the data
@@ -584,157 +550,3 @@ sdr
 # they need to be negative not positive
 
 ## end space for RTMB code (method)
-
-
-
-Random <- c("beta_gj")
-model <- "hierarchical_mi"
-compile(paste0("code/TMB/", model, ".cpp"))
-dyn.load(dynlib(paste0("code/TMB/",model)))
-
-## Run TUMB ####
-obj <-
-  TMB::MakeADFun(
-    data = data,
-    parameters = parameters,
-    DLL = model,
-    random = Random,
-    silent = TRUE
-  )
-opt <- nlminb(obj$par, obj$fn, obj$gr)
-rep = TMB::sdreport( obj,
-                getReportCovariance = TRUE, 
-                getJointPrecision=TRUE)
-
-## calculate cAIC
-EDF <- calculate_EDF( obj= obj,
-                      opt = opt,
-                      nonvariance_fixed_effects = c("beta_method", "alpha_j", "L_z", "log_lambda"),
-                      prediction_name = "mu",
-                      data_name = "minuslogpo2",
-                      delta = 0.01,
-                      show_progress = F,
-                      refit = "random"
-)
-
-nll_data <- obj$report()[["nll_data"]]
-cAIC_method <- 2 * nll_data + 2 * EDF
-cAIC_list <- c(cAIC_nomethod, cAIC_method)
-print(cAIC_list - min(cAIC_list))
-
-
-re <- summary(rep, "random")
-fixef <- summary(rep, "fixed")
-beta_mle <- matrix(re[grep(rownames(re), pattern = "beta_gj"),1], nrow = n_g, ncol = 3, byrow = F)
-beta_se <- matrix(re[grep(rownames(re), pattern = "beta_gj"),2], nrow = n_g, ncol = 3, byrow = F)
-beta_method <- matrix(fixef[grep(rownames(fixef), pattern = "beta_method"),1], nrow = n_methods)
-trans <- summary(rep, "report")
-lambda <- trans[grep(rownames(trans), pattern = "lambda"), ]
-
-
-# Summarize Estimatess ####
-sum_est <- summarize_estimates(beta_mle, beta_se, ParentChild_gz, taxa.list)
-
-# Plot Estimates ####
-# set axis limits
-x_v_lims <- c(0.75, 2.2)
-x_eo_lims <- c(-0.125, 0.6)
-x_n_lims <- c(-0.2, 0.075)
-
-plot_est <- T
-if (plot_est) {
-  if (taxa.list[1] == "Phylum") make_group_plot(Phylum, sum_est, saveplot = T)
-
-  if (taxa.list[1] %in% c("Phylum", "Class") ) make_group_plot(Class, sum_est, saveplot = T)
-  make_group_plot(Order, sum_est, saveplot = T)
-  make_group_plot(Family, sum_est,  saveplot = T)
-}
-# Compare fits to individual species ####
-SpeciesEst <- make_species_df(level = which(taxa.list == "Species"), 
-                         beta_mle,
-                         beta_se,
-                         ParentChild_gz,
-                         groups = taxa.list)
-
-SpeciesEst$V = exp(SpeciesEst$logV)
-saveRDS(SpeciesEst, file = "analysis/hierarchical_species_estimates.RDS")
-
-p_diagnostic <- plot_diagnostics(model= "method", 
-                                 Pcrit = all.dat$Pcrit, 
-                                 inv.temp = all.dat$inv.temp, 
-                                 W = all.dat$W, 
-                                 SpeciesEst = SpeciesEst,
-                                 beta_method = beta_method,
-                                 method_mat = method_mat)
-ggsave(filename= "figures/diagnostic.png",
-       plot = p_diagnostic,
-       units = "px",
-       scale = 3,
-       width = 1029,
-       height = 1029)
-
-
-# Get species-level trait variance and make table
-sampled_species_standard_deviation <- apply(X = SpeciesEst[,c("logV","n", "Eo")], MAR = 2, FUN = sd)
-
-
-
-## a plot of all species pcrit, vs. temperature and body mass
-temp_2_plot <- seq(0, 35, by = 5)
-inv_temp_ticks <- (1/ kb) * (1 / kelvin(temp_2_plot) - 1 / kelvin(tref) )
-
-alldata_plot_temperature <- ggplot(data = all.dat, aes(x = inv.temp, y = log(Pcrit), col = as.factor(Phylum) )) + 
-  scale_colour_viridis_d(option = "turbo") +
-  geom_point(size = 2) +
-  scale_x_continuous(breaks = inv_temp_ticks, labels = temp_2_plot,
-                     name = "Temperature °C") +
-  ylab(bquote( log( p["crit"] ) ) ) +
-  labs(col = "Phylum")
-
-alldata_plot_w<- ggplot(data = all.dat, aes(x =log(W), y = log(Pcrit), col = as.factor(Phylum) )) + 
-  scale_colour_viridis_d(option = "turbo") +
-  geom_point(size = 2) +
-  xlab ("log(W)" ) + 
-  ylab(bquote( log( p["crit"] ) ) ) +
-  labs(col = "Phylum")
-
-alldata_plot <- 
-  cowplot::plot_grid(alldata_plot_temperature + theme(legend.position="none"),
-             alldata_plot_w + theme(legend.position="none"),
-             nrow = 1,
-             align = "v")
-  
-legend <- get_legend(
-    # create some space to the left of the legend
-    alldata_plot_temperature + theme(legend.box.margin = margin(0, 0, 0, 12))
-  )
-  
-alldata_plot <- plot_grid(alldata_plot, legend, rel_widths = c(3, 0.85) )
-
-ggsave(file = "figures/alldata_plot.png",
-       plot = alldata_plot,
-       units = "px",
-       scale = 2,
-       height = 500,
-       width = 1200,
-       bg = "white")
-
-# print out parameter values reported in manuscript
-
-## levels of variance - the log_lambdas
-print(exp(fixef[rownames(fixef) == "log_lambda", "Estimate"]))
-
-## print out alpha_j - the mean trait values
-fixef[rownames(fixef) == "alpha_j", ]
-### First element is log(V).  Convert to V and get SE using delta method
-c(exp(fixef[rownames(fixef) == "alpha_j", "Estimate"][1])  , se =  exp(fixef[rownames(fixef) == "alpha_j", "Estimate"][1]) * fixef[rownames(fixef) == "alpha_j", "Std. Error"][1] )
-
-# for each species, document how many unique body sizes and unique temperatures
-
-number_bodysize_temperature <- all.dat %>%
-  group_by(Species) %>%
-  summarise(n_sizes = length(unique(W)), n_temps = length(unique(Temp)))
-n_species_2_temperature <- length(which(number_bodysize_temperature$n_temps > 2))
-n_species_2_sizes <- length(which(number_bodysize_temperature$n_sizes > 2))
-print(c(n_species_2_sizes, n_species_2_temperature))
-
