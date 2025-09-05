@@ -227,8 +227,12 @@ genus_summary <- all.dat %>%
 # Setup data for TMB ####
 
 kb <-  8.617333262145E-5
-tref <- 15
-wref <- 5
+
+# change made on 9/4, VL: reference body size and temp are dynamic
+# set by referencing the dataframe
+tref <- median(all.dat$Temp)
+wref <- median(all.dat$W)
+
 all.dat$W <- all.dat$W/wref
 all.dat$inv.temp <- (1 / kb) * (1 / (all.dat$Temp + 273.15) - 1/(tref + 273.15))
 all.dat$Pcrit_atm<- all.dat$Pcrit / 101.325 # convert from kPa to atm

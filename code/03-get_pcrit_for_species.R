@@ -30,14 +30,12 @@ method.names <- c("oxyconform", "death", "smr")
 # create a dataframe of all combinations of the above
 prediction_info <- tidyr::expand_grid(taxa.name = species.names, method = method.names)
 
-
 # calcualte pcrit for each combination above and put in data frame
-# Now that I have multiple lines for beta_method, this throws an error. Will need editing in fit_model_funs.R
 result_df <- pmap_dfr(prediction_info, 
                       function(taxa.name, method) {
                         result <- estimate_taxa(taxa.name = taxa.name,
-                                                w = 25,
-                                                temperature = 20,
+                                                w = 20,
+                                                temperature = 10,
                                                 method = method,
                                                 rep = model.fit$rep,
                                                 ParentChild_gz = model.fit$ParentChild_gz,
@@ -112,6 +110,7 @@ plot_results <- ggplot(data = result_df, aes(y = ypos, x = log_pcrit, col = meth
   theme(legend.position = "top")
 
 print(plot_results)
+
 ggsave(file = "figures/clinocottus_globiceps.png",
        plot = plot_results,
        device = "png",

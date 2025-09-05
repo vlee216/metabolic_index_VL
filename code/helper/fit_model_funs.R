@@ -197,8 +197,12 @@ load_data <- function() {
   calc_p_po2 <- function(po2, temp, w, pcrit_type = "smr", betas, var_covar) {
     
     # Setup fixed values
-    wref <- 5
-    tref <- 15
+    
+    # change made on 9/4, VL: reference body size and temp are dynamic
+    # set by referencing the dataframe
+    tref <- median(all.dat$Temp)
+    wref <- median(all.dat$W)
+    
     kb <-  8.617333262145E-5
     # Transform w and temperature
     inv_temperature <- (1/ kb) * (1 / kelvin(temp) - 1 / kelvin(tref) )
@@ -559,8 +563,12 @@ load_data <- function() {
     
     
     # some placeholder settings
-    wref <- 5
-    tref <- 15
+
+    # change made on 9/4, VL: reference body size and temp are dynamic
+    # set by referencing the dataframe
+    tref <- median(all.dat$Temp)
+    wref <- median(all.dat$W)
+    
     kb <-  8.617333262145E-5
     
     betas <- as.vector(c(beta_mle_taxa, beta_method))
@@ -628,8 +636,12 @@ load_data <- function() {
       method_mat <- model.matrix( ~ EstMethod_Metric , all.dat)
       n_methods <- ncol(method_mat) - 1
       kb <-  8.617333262145E-5
-      tref <- 15
-      wref <- 5
+      
+      # change made on 9/4, VL: reference body size and temp are dynamic
+      # set by referencing the dataframe
+      tref <- median(all.dat$Temp)
+      wref <- median(all.dat$W)
+      
       all.dat$W <- all.dat$W / wref
       all.dat$inv.temp <- (1 / kb) * (1 / (all.dat$Temp + 273.15) - 1 / (tref + 273.15))
       all.dat$minuslogpo2 <- -log(all.dat$Pcrit)

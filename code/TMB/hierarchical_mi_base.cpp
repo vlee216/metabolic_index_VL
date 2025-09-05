@@ -28,7 +28,7 @@
     
     // Additive constant on diagonal
     for(int r=0; r<n_rows; r++){
-      Cov_rr(r,r) += min_var;  // Neccesary to prevent crashes during innner optimizer when using SR data
+      Cov_rr(r,r) += min_var;  // Necessary to prevent crashes during inner optimizer when using SR data
     }
     // Combine and return
     Cov_rr += L_rc * L_rc.transpose();
