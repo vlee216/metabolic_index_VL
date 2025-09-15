@@ -275,7 +275,7 @@ dyn.load(dynlib(paste0("code/TMB/",model)))
 
 ## Run TUMB ####
 obj_nomethod <-
-  MakeADFun(
+  TMB::MakeADFun(
     data = data,
     parameters = parameters,
     DLL = model,
@@ -283,7 +283,7 @@ obj_nomethod <-
     silent = TRUE
   )
 opt_nomethod <- nlminb(obj_nomethod$par, obj_nomethod$fn, obj_nomethod$gr)
-rep_nomethod = sdreport( obj_nomethod,
+rep_nomethod = TMB::sdreport( obj_nomethod,
                 getReportCovariance = TRUE, 
                 getJointPrecision=TRUE)
 EDF <- calculate_EDF( obj= obj_nomethod,

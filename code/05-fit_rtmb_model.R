@@ -249,7 +249,7 @@ spc_in_PC_gz <- taxa.info$spc_in_PC_gz
 # Fit model without method effect ####
 ## Setup TMB ####
 data <- list(PC_gz = PC_gz,
-             g_i = g_i - 1,
+             g_i = g_i,
              invtemp = all.dat$inv.temp,
              logW = log(all.dat$W),
              taxa_id = g_i_i,
@@ -273,7 +273,7 @@ library(RTMB)
 cov_matrix <- function(L_val, min_var, n_rows){
   L_rc <- matrix(0, nrow = n_rows, ncol = n_rows)
   Cov_rr <- matrix(0, nrow = n_rows, ncol = n_rows)
-  Return_rr <- matrix(0, nrow = n_rows, ncol = n_rows)
+
   Count <- 1
   for (r in 1:n_rows){
     for (c in 1:n_rows){
@@ -286,10 +286,10 @@ cov_matrix <- function(L_val, min_var, n_rows){
       }
     }
   }
-  diag(Cov_rr) <- min_var
+  diag(Cov_rr) <- diag(Cov_rr) + min_var
   Cov_rr <- Cov_rr + L_rc %*% t(L_rc)
   Return_rr <- Cov_rr
-  Return_rr
+  return(Return_rr)
 }
 
 # set up the RTMB model to mirror the previous C++ code
@@ -357,7 +357,7 @@ f_base <- function(parameters){
   for (g in 1:n_g){
     Child_num <- PC_gz[g,2]
     Parent_row <- PC_gz[g,1] + 1
-    lambda_num <- Child_num
+    lambda_num <- Child_num - 1
     for (j in 1:n_j){
       if(PC_gz[g,2] == 0) {Parent_j[j] <- alpha_j[j]}
       if(PC_gz[g,2] >= 1) {Parent_j[j] <- beta_gj[Parent_row, j]}
@@ -367,7 +367,7 @@ f_base <- function(parameters){
       Deviation_j[j] <- beta_gj[g,j] - Prediction_j[j]
     }
     if( Child_num == 0) {covmult <- 1}
-    if( Child_num >= 1) {covmult <- lambda[lambda_num]}
+    if( Child_num >= 1) {covmult <- lambda[lambda_num + 1]}
     tmpCov_jj <- Cov_jj * covmult
     jnll_comp[1] <- jnll_comp[1] - dmvnorm(Deviation_j, Sigma = tmpCov_jj, log = TRUE)
   }
@@ -407,6 +407,7 @@ sdr
 # will interrogate this over the next workweek
 
 ## end space to work on turning this into RTMB code
+
 
 # Now for the method effect
 
