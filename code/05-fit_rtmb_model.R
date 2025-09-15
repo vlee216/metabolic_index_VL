@@ -227,8 +227,8 @@ genus_summary <- all.dat %>%
 # Setup data for TMB ####
 
 kb <-  8.617333262145E-5
-tref <- 15
-wref <- 5
+tref <- median(all.dat$Temp)
+wref <- median(all.dat$W)
 all.dat$W <- all.dat$W/wref
 all.dat$inv.temp <- (1 / kb) * (1 / (all.dat$Temp + 273.15) - 1/(tref + 273.15))
 all.dat$Pcrit_atm<- all.dat$Pcrit / 101.325 # convert from kPa to atm
@@ -402,12 +402,8 @@ opt_base <- nlminb(obj_base$par, obj_base$fn, obj_base$gr)
 sdr <- sdreport(obj_base)
 
 sdr
-# not sure yet if this is working right -- the code runs, but is 
-# this giving me the model I'm supposed to get?
-# will interrogate this over the next workweek
 
-## end space to work on turning this into RTMB code
-
+# this gives a result exactly equivalent to the TMB base model in file 022
 
 # Now for the method effect
 
