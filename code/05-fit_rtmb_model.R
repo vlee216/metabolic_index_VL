@@ -182,7 +182,7 @@ summarize_estimates <- function (beta_mle, beta_se, ParentChild_gz, taxa.list){
 all.dat <- load_data()
 all.dat <- filter_data(all.dat)
 
-# Transform EstMethod_Metric == "loe" to EstMethod_Metric == "lethal (VL, 8/27)
+# Transform EstMethod_Metric == "loe" to EstMethod_Metric == "death" (VL, 8/27)
 for (i in 1:nrow(all.dat)){
   if (all.dat[i,]$EstMethod_Metric == "loe") {
     all.dat[i,]$EstMethod_Metric <- "death"
@@ -357,7 +357,7 @@ f_base <- function(parameters){
   for (g in 1:n_g){
     Child_num <- PC_gz[g,2]
     Parent_row <- PC_gz[g,1] + 1
-    lambda_num <- Child_num - 1
+    lambda_num <- Child_num
     for (j in 1:n_j){
       if(PC_gz[g,2] == 0) {Parent_j[j] <- alpha_j[j]}
       if(PC_gz[g,2] >= 1) {Parent_j[j] <- beta_gj[Parent_row, j]}
@@ -367,7 +367,7 @@ f_base <- function(parameters){
       Deviation_j[j] <- beta_gj[g,j] - Prediction_j[j]
     }
     if( Child_num == 0) {covmult <- 1}
-    if( Child_num >= 1) {covmult <- lambda[lambda_num + 1]}
+    if( Child_num >= 1) {covmult <- lambda[lambda_num]}
     tmpCov_jj <- Cov_jj * covmult
     jnll_comp[1] <- jnll_comp[1] - dmvnorm(Deviation_j, Sigma = tmpCov_jj, log = TRUE)
   }
@@ -411,7 +411,7 @@ sdr
 ## Setup TMB ####
 
 data <- list(PC_gz = PC_gz,
-             g_i = g_i - 1,
+             g_i = g_i,
              invtemp = all.dat$inv.temp,
              logW = log(all.dat$W),
              taxa_id = g_i_i,
@@ -513,7 +513,7 @@ f <- function(parameters){
   
   # probability of the data
   for (i in 1:n_d){
-    mu[i] <- Eo[taxa_id[i]]*invtemp[i] + n_pow[taxa_id[i]]*logW[i] - log(V[taxa_id[i]] - method_mat[i,] %*% beta_method)
+    mu[i] <- Eo[taxa_id[i]]*invtemp[i] + n_pow[taxa_id[i]]*logW[i] - log(V[taxa_id[i]]) - method_mat[i,] %*% beta_method
   }
   
   # get nll of the data
@@ -542,8 +542,5 @@ opt <- nlminb(obj$par, obj$fn, obj$gr)
 sdr <- sdreport(obj)
 
 sdr
-# the method RTMB code is not currently functional -- these estimates are completely off.
-# wrong sign
-# they need to be negative not positive
 
-## end space for RTMB code (method)
+# these fixed effect estimates match the C++ TMB code result from file 02 exactly

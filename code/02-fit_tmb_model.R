@@ -325,7 +325,7 @@ dyn.load(dynlib(paste0("code/TMB/",model)))
 
 ## Run TUMB ####
 obj <-
-  MakeADFun(
+  TMB::MakeADFun(
     data = data,
     parameters = parameters,
     DLL = model,
@@ -333,7 +333,7 @@ obj <-
     silent = TRUE
   )
 opt <- nlminb(obj$par, obj$fn, obj$gr)
-rep = sdreport( obj,
+rep = TMB::sdreport( obj,
                 getReportCovariance = TRUE, 
                 getJointPrecision=TRUE)
 
@@ -361,10 +361,6 @@ beta_se <- matrix(re[grep(rownames(re), pattern = "beta_gj"),2], nrow = n_g, nco
 beta_method <- matrix(fixef[grep(rownames(fixef), pattern = "beta_method"),1], nrow = n_methods)
 trans <- summary(rep, "report")
 lambda <- trans[grep(rownames(trans), pattern = "lambda"), ]
-
-# Name the beta_method rows ###
-
-
 
 
 # Summarize Estimatess ####
